@@ -1,6 +1,6 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Collaborator } from '@/types';
+import { supabase as defaultClient } from "@/integrations/supabase/client";
 
 const supabaseUrl = 'https://wslflobdapmebkjnaqld.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzbGZsb2JkYXBtZWJram5hcWxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE0NDc2ODQsImV4cCI6MjA1NzAyMzY4NH0.lNk_nX9S7KMjSYnR1JpFns7biqXvq0Ln2Z6pAYGi9aQ';
@@ -9,22 +9,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Helper function to get authenticated client
 export const getAuthenticatedClient = () => {
-  const user = JSON.parse(localStorage.getItem("scrumUser") || "{}");
-  // For our demo app, we manually set auth header with user ID
-  // In a real app with Supabase Auth, this would use built-in auth tokens
-  if (user && user.id) {
-    return createClient(supabaseUrl, supabaseKey, {
-      global: {
-        headers: {
-          // Set the JWT claims with the user_id for RLS policies
-          Authorization: `Bearer ${JSON.stringify({
-            user_id: user.id
-          })}`,
-        },
-      },
-    });
-  }
-  return supabase;
+  // Instead of creating a new client with manual auth headers, we'll use the integrated client
+  // which will handle authentication properly
+  return defaultClient;
 };
 
 // Helper function to fetch columns for a sprint
@@ -107,8 +94,8 @@ export const findUserByEmailOrUsername = async (emailOrUsername: string) => {
 // Helper function to add a collaborator to a project
 export const addCollaborator = async (projectId: string, userId: string, role: 'viewer' | 'member' | 'admin') => {
   try {
-    const authClient = getAuthenticatedClient();
-    const { data, error } = await authClient
+    // Use the integrated Supabase client which handles auth correctly
+    const { data, error } = await defaultClient
       .from('collaborators')
       .insert({
         project_id: projectId,
@@ -129,8 +116,8 @@ export const addCollaborator = async (projectId: string, userId: string, role: '
 // Helper function to fetch collaborators for a project
 export const fetchProjectCollaborators = async (projectId: string) => {
   try {
-    const authClient = getAuthenticatedClient();
-    const { data, error } = await authClient
+    // Use the integrated Supabase client which handles auth correctly
+    const { data, error } = await defaultClient
       .from('collaborators')
       .select(`
         id,
@@ -163,8 +150,8 @@ export const fetchProjectCollaborators = async (projectId: string) => {
 // Helper function to remove a collaborator from a project
 export const removeCollaborator = async (collaboratorId: string) => {
   try {
-    const authClient = getAuthenticatedClient();
-    const { error } = await authClient
+    // Use the integrated Supabase client which handles auth correctly
+    const { error } = await defaultClient
       .from('collaborators')
       .delete()
       .eq('id', collaboratorId);
@@ -180,8 +167,8 @@ export const removeCollaborator = async (collaboratorId: string) => {
 // Helper function to update a collaborator's role
 export const updateCollaboratorRole = async (collaboratorId: string, role: 'viewer' | 'member' | 'admin') => {
   try {
-    const authClient = getAuthenticatedClient();
-    const { error } = await authClient
+    // Use the integrated Supabase client which handles auth correctly
+    const { error } = await defaultClient
       .from('collaborators')
       .update({ role })
       .eq('id', collaboratorId);
