@@ -1,137 +1,38 @@
 
-import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { 
-  LayoutDashboard, 
-  Sprint, 
-  Users, 
-  Settings, 
-  Menu, 
-  X,
-  Search
-} from "lucide-react";
+import React from "react";
+import { Link } from "react-router-dom";
+import { LogOut, Check } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
-interface NavItemProps {
-  icon: React.ElementType;
-  label: string;
-  to: string;
-  active: boolean;
-}
-
-const NavItem = ({ icon: Icon, label, to, active }: NavItemProps) => {
-  return (
-    <Link to={to}>
-      <Button
-        variant="ghost"
-        className={cn(
-          "w-full justify-start gap-2 text-base font-normal transition-all",
-          active ? "bg-accent text-primary font-medium" : "hover:bg-accent/50"
-        )}
-      >
-        <Icon size={18} className={active ? "text-primary" : "text-muted-foreground"} />
-        <span className="animate-slide-in-bottom">{label}</span>
-      </Button>
-    </Link>
-  );
-};
-
-export function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
-  const location = useLocation();
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
-    };
-    
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    // Close mobile menu when route changes
-    setIsOpen(false);
-  }, [location]);
-
-  const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", to: "/" },
-    { icon: Sprint, label: "Sprints", to: "/sprints" },
-    { icon: Users, label: "Team", to: "/team" },
-    { icon: Settings, label: "Settings", to: "/settings" },
-  ];
+const Navbar: React.FC = () => {
+  const { user, logout } = useAuth();
 
   return (
-    <header 
-      className={cn(
-        "fixed top-0 z-50 w-full transition-all duration-300 px-4 py-3",
-        scrolled ? "bg-white/80 backdrop-blur-md shadow-sm" : "bg-transparent"
-      )}
-    >
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">S</span>
-            </div>
-            <span className="text-xl font-semibold text-foreground">Scrum</span>
-          </Link>
-        </div>
+    <header className="fixed top-0 left-0 right-0 h-16 bg-scrum-card border-b border-scrum-border px-6 flex items-center justify-between z-10">
+      <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
+          <Check className="h-6 w-6 text-white" />
+          <h1 className="text-xl font-semibold text-white">Scrumify Hub</h1>
+        </Link>
+      </div>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-1">
-          {navItems.map((item) => (
-            <NavItem
-              key={item.to}
-              icon={item.icon}
-              label={item.label}
-              to={item.to}
-              active={location.pathname === item.to}
-            />
-          ))}
-        </nav>
-
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <Search size={18} />
-          </Button>
-          
-          {/* Mobile menu button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label="Toggle menu"
+      {user && (
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-scrum-text-secondary">{user.email}</span>
+          <div className="h-8 w-8 rounded-full bg-white text-scrum-card flex items-center justify-center font-semibold">
+            {user.username?.charAt(0).toUpperCase() || "U"}
+          </div>
+          <button
+            onClick={logout}
+            className="text-scrum-text-secondary hover:text-white transition-colors"
+            title="Sign Out"
           >
-            {isOpen ? <X size={20} /> : <Menu size={20} />}
-          </Button>
+            <LogOut className="h-5 w-5" />
+          </button>
         </div>
-      </div>
-
-      {/* Mobile Navigation */}
-      <div 
-        className={cn(
-          "fixed inset-0 z-40 bg-white md:hidden transition-transform duration-300 pt-16",
-          isOpen ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        <nav className="flex flex-col space-y-1 p-4">
-          {navItems.map((item) => (
-            <NavItem
-              key={item.to}
-              icon={item.icon}
-              label={item.label}
-              to={item.to}
-              active={location.pathname === item.to}
-            />
-          ))}
-        </nav>
-      </div>
+      )}
     </header>
   );
-}
+};
 
 export default Navbar;

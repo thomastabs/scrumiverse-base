@@ -1,134 +1,104 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 224 71.4% 4.1%;
+    --background: 0 0% 6%;
+    --foreground: 0 0% 100%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 220 8.9% 46.1%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 221.2 83.2% 53.3%;
+    --border: 0 0% 18%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.9%;
 
     --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 221.2 83.2% 53.3%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
-    font-family: 'Inter', sans-serif;
   }
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01";
   }
 
-  /* Custom scrollbar */
+  /* Custom scrollbar style */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: transparent;
+    @apply bg-scrum-card;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/20 rounded-full;
+    @apply bg-scrum-accent rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/30;
+    @apply bg-scrum-highlight;
   }
 }
 
 @layer components {
-  .glass-panel {
-    @apply backdrop-blur-sm bg-white/80 border border-white/20 shadow-glass;
-  }
-  
   .scrum-card {
-    @apply bg-white rounded-lg p-4 border border-border shadow-card transition-all duration-300 hover:shadow-elevated;
+    @apply bg-scrum-card rounded-md border border-scrum-border p-4 transition-all duration-200;
   }
   
-  .status-badge {
-    @apply px-2 py-1 rounded-full text-xs font-medium;
+  .scrum-button {
+    @apply bg-white text-black hover:bg-opacity-90 py-2 px-4 rounded-md transition-all duration-200 font-medium;
+  }
+  
+  .scrum-button-secondary {
+    @apply bg-scrum-accent text-white hover:bg-scrum-highlight py-2 px-4 rounded-md transition-all duration-200;
   }
 
-  .priority-badge {
-    @apply px-2 py-1 rounded-full text-xs font-medium;
-  }
-  
-  .animate-on-scroll {
-    @apply opacity-0 translate-y-4 transition-all duration-700;
-  }
-  
-  .animate-on-scroll.in-view {
-    @apply opacity-100 translate-y-0;
+  .scrum-input {
+    @apply bg-scrum-card border border-scrum-border text-white rounded-md py-2 px-4 w-full focus:outline-none focus:ring-1 focus:ring-scrum-highlight;
   }
 
-  /* Card status styling */
-  .status-todo {
-    @apply bg-status-todo text-status-todo-text;
-  }
-  
-  .status-inprogress {
-    @apply bg-status-inprogress text-status-inprogress-text;
-  }
-  
-  .status-review {
-    @apply bg-status-review text-status-review-text;
-  }
-  
-  .status-done {
-    @apply bg-status-done text-status-done-text;
+  .nav-link {
+    @apply px-4 py-2 rounded-md transition-all duration-200 flex items-center gap-2;
   }
 
-  /* Priority styling */
-  .priority-low {
-    @apply bg-priority-low text-priority-low-text;
+  .nav-link.active {
+    @apply bg-scrum-accent text-white;
   }
   
-  .priority-medium {
-    @apply bg-priority-medium text-priority-medium-text;
+  .nav-link:not(.active) {
+    @apply text-scrum-text-secondary hover:bg-scrum-accent hover:bg-opacity-30;
   }
-  
-  .priority-high {
-    @apply bg-priority-high text-priority-high-text;
-  }
+}
+
+.saturate-on-hover {
+  filter: saturate(0.8);
+  transition: filter 0.3s ease;
+}
+
+.saturate-on-hover:hover {
+  filter: saturate(1.2);
 }
