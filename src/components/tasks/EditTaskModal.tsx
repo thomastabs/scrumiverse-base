@@ -25,6 +25,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
     const task = getTask(taskId);
     
     if (task) {
+      console.log("Loading task data:", task);
       setTitle(task.title);
       setDescription(task.description || "");
       setPriority(task.priority || "medium");
@@ -42,6 +43,14 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
     }
     
     try {
+      console.log("Updating task with:", {
+        title,
+        description,
+        priority,
+        assignedTo,
+        storyPoints
+      });
+      
       await updateTask(taskId, {
         title,
         description,
