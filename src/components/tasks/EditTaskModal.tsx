@@ -41,16 +41,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       return;
     }
     
-    if (!description.trim()) {
-      toast.error("Task description is required");
-      return;
-    }
-    
-    if (!storyPoints || storyPoints < 1) {
-      toast.error("Task must have at least 1 story point");
-      return;
-    }
-    
     try {
       await updateTask(taskId, {
         title,
@@ -108,7 +98,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
               onChange={(e) => setDescription(e.target.value)}
               className="scrum-input"
               rows={3}
-              required
             />
           </div>
           
@@ -150,14 +139,13 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           
           <div className="mb-6">
             <label className="block mb-2 text-sm">
-              Assigned To <span className="text-destructive">*</span>
+              Assigned To
             </label>
             <input
               type="text"
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
               className="scrum-input"
-              required
             />
           </div>
           

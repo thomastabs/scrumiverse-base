@@ -402,12 +402,22 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const projectSprints = sprints.filter(s => s.projectId === id);
       const sprintIds = projectSprints.map(s => s.id);
       
+      // First, delete all board columns associated with any sprint in this project
       if (sprintIds.length > 0) {
+        const { error: columnsError } = await supabase
+          .from('board_columns')
+          .delete()
+          .in('sprint_id', sprintIds);
+          
+        if (columnsError) {
+          console.error('Error deleting board columns:', columnsError);
+          throw columnsError;
+        }
+        
         const { error: tasksError } = await supabase
           .from('tasks')
           .delete()
-          .in('sprint_id', sprintIds)
-          .eq('user_id', user.id);
+          .in('sprint_id', sprintIds);
           
         if (tasksError) {
           console.error('Error deleting tasks:', tasksError);
@@ -417,8 +427,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const { error: sprintsError } = await supabase
           .from('sprints')
           .delete()
-          .eq('project_id', id)
-          .eq('user_id', user.id);
+          .eq('project_id', id);
           
         if (sprintsError) {
           console.error('Error deleting sprints:', sprintsError);
@@ -430,8 +439,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .from('tasks')
         .delete()
         .is('sprint_id', null)
-        .eq('project_id', id)
-        .eq('user_id', user.id);
+        .eq('project_id', id);
         
       if (backlogTasksError) {
         console.error('Error deleting backlog tasks:', backlogTasksError);
@@ -541,10 +549,21 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user) throw new Error('User not authenticated');
 
     try {
-      // First, fetch all tasks associated with this sprint
+      // First, delete all board columns associated with this sprint
+      const { error: columnsError } = await supabase
+        .from('board_columns')
+        .delete()
+        .eq('sprint_id', id);
+        
+      if (columnsError) {
+        console.error('Error deleting sprint board columns:', columnsError);
+        throw columnsError;
+      }
+
+      // Now, fetch all tasks associated with this sprint
       const sprintTasks = tasks.filter(t => t.sprintId === id);
       
-      // If there are tasks in this sprint, we need to delete them first
+      // If there are tasks in this sprint, we need to delete them
       if (sprintTasks.length > 0) {
         console.log(`Deleting ${sprintTasks.length} tasks before deleting sprint`);
         
