@@ -7,10 +7,13 @@ import { toast } from "sonner";
 import TaskCard from "@/components/tasks/TaskCard";
 import EditTaskModal from "@/components/tasks/EditTaskModal";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
+import { ProjectRole } from "@/types";
 
 const SprintBoard: React.FC = () => {
   const { sprintId } = useParams<{ sprintId: string }>();
   const { updateSprint, updateTask } = useProjects();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   const [sprint, setSprint] = useState<any>(null);
@@ -27,25 +30,37 @@ const SprintBoard: React.FC = () => {
   const [creatingTaskInColumn, setCreatingTaskInColumn] = useState<string | null>(null);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<ProjectRole | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   
-  // Fetch sprint data
   useEffect(() => {
     const fetchSprintData = async () => {
       if (!sprintId) return;
       
       try {
+        console.log("Fetching sprint data for sprint ID:", sprintId);
+        
         const { data: sprintData, error: sprintError } = await supabase
           .from('sprints')
           .select('*')
           .eq('id', sprintId)
           .single();
           
-        if (sprintError) throw sprintError;
-        if (!sprintData) throw new Error('Sprint not found');
+        if (sprintError) {
+          console.error("Error fetching sprint:", sprintError);
+          throw sprintError;
+        }
         
+        if (!sprintData) {
+          console.error("Sprint not found");
+          throw new Error('Sprint not found');
+        }
+        
+        console.log("Sprint data fetched:", sprintData);
         setSprint(sprintData);
+        setProjectId(sprintData.project_id);
         
-        // Fetch tasks for this sprint
         const { data: tasksData, error: tasksError } = await supabase
           .from('tasks')
           .select('*')
@@ -53,9 +68,9 @@ const SprintBoard: React.FC = () => {
           
         if (tasksError) throw tasksError;
         
+        console.log("Tasks data fetched:", tasksData || []);
         setTasks(tasksData || []);
         
-        // Initialize columns with tasks
         const initialColumns: {[key: string]: {title: string, taskIds: string[]}} = {
           "todo": { title: "TO DO", taskIds: [] },
           "in-progress": { title: "IN PROGRESS", taskIds: [] },
@@ -71,6 +86,40 @@ const SprintBoard: React.FC = () => {
         });
         
         setColumns(initialColumns);
+        
+        if (user) {
+          // Check if user is the project owner
+          const { data: projectData, error: projectError } = await supabase
+            .from('projects')
+            .select('owner_id')
+            .eq('id', sprintData.project_id)
+            .single();
+            
+          if (projectError) {
+            console.error("Error fetching project:", projectError);
+          } else if (projectData && projectData.owner_id === user.id) {
+            console.log("User is project owner");
+            setIsOwner(true);
+            setUserRole('admin');
+          } else {
+            // Check if user is a collaborator
+            console.log("Checking if user is a collaborator");
+            const { data: collaboratorData, error: collaboratorError } = await supabase
+              .from('collaborators')
+              .select('role')
+              .eq('project_id', sprintData.project_id)
+              .eq('user_id', user.id)
+              .single();
+              
+            if (collaboratorError) {
+              console.error("Error checking collaborator status:", collaboratorError);
+            } else if (collaboratorData) {
+              console.log("User is a collaborator with role:", collaboratorData.role);
+              setUserRole(collaboratorData.role as ProjectRole);
+            }
+          }
+        }
+        
         setIsLoading(false);
       } catch (error) {
         console.error('Error fetching sprint data:', error);
@@ -79,7 +128,7 @@ const SprintBoard: React.FC = () => {
     };
     
     fetchSprintData();
-  }, [sprintId]);
+  }, [sprintId, user]);
 
   const handleDragEnd = async (result: any) => {
     const { destination, source, draggableId } = result;
@@ -131,9 +180,26 @@ const SprintBoard: React.FC = () => {
       });
       
       try {
-        await updateTask(draggableId, {
-          status: destination.droppableId
-        });
+        const { error } = await supabase
+          .from('tasks')
+          .update({ status: destination.droppableId })
+          .eq('id', draggableId);
+          
+        if (error) throw error;
+        
+        setTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === draggableId ? { ...task, status: destination.droppableId } : task
+          )
+        );
+        
+        try {
+          await updateTask(draggableId, {
+            status: destination.droppableId
+          });
+        } catch (contextError) {
+          console.log("Context update failed but Supabase update succeeded:", contextError);
+        }
         
         if (destination.droppableId === "done") {
           const allTasks = tasks;
@@ -151,6 +217,18 @@ const SprintBoard: React.FC = () => {
       } catch (error) {
         console.error("Error updating task status:", error);
         toast.error("Failed to update task status");
+        
+        setColumns({
+          ...columns,
+          [source.droppableId]: {
+            ...sourceColumn,
+            taskIds: Array.from(sourceColumn.taskIds),
+          },
+          [destination.droppableId]: {
+            ...destColumn,
+            taskIds: Array.from(destColumn.taskIds).filter(id => id !== draggableId),
+          },
+        });
       }
     }
   };
@@ -159,7 +237,38 @@ const SprintBoard: React.FC = () => {
     setCreatingTaskInColumn(columnId);
   };
   
+  const handleTaskDeleted = (taskId: string) => {
+    // Update columns state by removing the deleted task
+    setColumns(prevColumns => {
+      const newColumns = { ...prevColumns };
+      
+      // Find which column contains the task and remove it
+      Object.keys(newColumns).forEach(columnId => {
+        const column = newColumns[columnId];
+        const taskIndex = column.taskIds.indexOf(taskId);
+        
+        if (taskIndex !== -1) {
+          // Remove the task from that column
+          newColumns[columnId] = {
+            ...column,
+            taskIds: column.taskIds.filter(id => id !== taskId)
+          };
+        }
+      });
+      
+      return newColumns;
+    });
+    
+    // Update tasks state by removing the deleted task
+    setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+  };
+  
   const handleCompleteSprint = async () => {
+    if (!isOwner && userRole !== 'admin') {
+      toast.error("Only project owners and admins can complete sprints");
+      return;
+    }
+
     if (!allTasksCompleted) {
       setIsCompleteDialogOpen(true);
       return;
@@ -199,6 +308,8 @@ const SprintBoard: React.FC = () => {
     }
   };
   
+  const canAddTasks = isOwner || userRole === 'admin' || userRole === 'member';
+  
   if (isLoading) {
     return (
       <div className="text-center py-12">
@@ -211,6 +322,9 @@ const SprintBoard: React.FC = () => {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-bold mb-4">Sprint not found</h2>
+        <p className="text-scrum-text-secondary mb-4">
+          Either the sprint doesn't exist or you don't have access to it.
+        </p>
         <button
           onClick={() => navigate(-1)}
           className="scrum-button"
@@ -229,6 +343,7 @@ const SprintBoard: React.FC = () => {
         sprint={sprint}
         onCompleteSprint={handleCompleteSprint}
         allTasksCompleted={allTasksCompleted}
+        canComplete={isOwner || userRole === 'admin'}
       />
       
       <div className="flex items-center justify-between mb-4 mt-8">
@@ -251,7 +366,7 @@ const SprintBoard: React.FC = () => {
                 <div className="bg-scrum-card border border-scrum-border rounded-md h-full flex flex-col">
                   <div className="flex items-center justify-between p-3 border-b border-scrum-border">
                     <h4 className="font-medium text-sm">{column.title}</h4>
-                    {sprint.status !== "completed" && (
+                    {sprint.status !== "completed" && canAddTasks && (
                       <button
                         onClick={() => handleCreateTaskInColumn(columnId)}
                         className="text-scrum-text-secondary hover:text-white transition-colors"
@@ -262,7 +377,7 @@ const SprintBoard: React.FC = () => {
                     )}
                   </div>
                   
-                  <Droppable droppableId={columnId} isDropDisabled={sprint.status === "completed"}>
+                  <Droppable droppableId={columnId} isDropDisabled={sprint.status === "completed" || userRole === 'viewer'}>
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
@@ -275,7 +390,7 @@ const SprintBoard: React.FC = () => {
                               key={task.id}
                               draggableId={task.id}
                               index={index}
-                              isDragDisabled={sprint.status === "completed"}
+                              isDragDisabled={sprint.status === "completed" || userRole === 'viewer'}
                             >
                               {(provided, snapshot) => (
                                 <div
@@ -286,8 +401,9 @@ const SprintBoard: React.FC = () => {
                                 >
                                   <TaskCard
                                     task={task}
-                                    onEdit={() => setEditingTask(task.id)}
+                                    onEdit={canAddTasks ? () => setEditingTask(task.id) : undefined}
                                     isSprintCompleted={sprint.status === "completed"}
+                                    onTaskDeleted={handleTaskDeleted}
                                   />
                                 </div>
                               )}
@@ -323,8 +439,11 @@ const SprintBoard: React.FC = () => {
           <div className="bg-scrum-card border border-scrum-border rounded-lg p-6 w-full max-w-lg animate-fade-up">
             <NewTaskForm 
               sprintId={sprint.id}
+              projectId={projectId || ''}
               initialStatus={creatingTaskInColumn}
               onClose={() => setCreatingTaskInColumn(null)}
+              setColumns={setColumns}
+              setTasks={setTasks}
             />
           </div>
         </div>
@@ -368,20 +487,22 @@ interface SprintHeaderProps {
   sprint: {
     id: string;
     title: string;
-    description: string;
-    projectId: string;
-    startDate: string;
-    endDate: string;
+    description?: string;
+    project_id: string;
+    start_date: string;
+    end_date: string;
     status: 'planned' | 'in-progress' | 'completed';
   };
   onCompleteSprint: () => void;
   allTasksCompleted: boolean;
+  canComplete: boolean;
 }
 
 const SprintHeader: React.FC<SprintHeaderProps> = ({ 
   sprint, 
   onCompleteSprint,
-  allTasksCompleted
+  allTasksCompleted,
+  canComplete
 }) => {
   const formatDateRange = (start: string, end: string) => {
     const startDate = new Date(start);
@@ -395,12 +516,12 @@ const SprintHeader: React.FC<SprintHeaderProps> = ({
       <div>
         <h1 className="font-bold text-xl">{sprint.title}</h1>
         <div className="text-sm text-scrum-text-secondary">
-          {formatDateRange(sprint.startDate, sprint.endDate)}
+          {formatDateRange(sprint.start_date, sprint.end_date)}
         </div>
       </div>
       
       <div>
-        {sprint.status !== "completed" && (
+        {sprint.status !== "completed" && canComplete && (
           <button
             onClick={onCompleteSprint}
             className={`flex items-center gap-1 ${allTasksCompleted ? 'scrum-button-success' : 'scrum-button-warning'}`}
@@ -416,14 +537,17 @@ const SprintHeader: React.FC<SprintHeaderProps> = ({
 
 const NewTaskForm: React.FC<{
   sprintId: string;
+  projectId: string;
   initialStatus: string;
   onClose: () => void;
-}> = ({ sprintId, initialStatus, onClose }) => {
+  setColumns: React.Dispatch<React.SetStateAction<{[key: string]: {title: string, taskIds: string[]}}>>;
+  setTasks: React.Dispatch<React.SetStateAction<any[]>>;
+}> = ({ sprintId, projectId, initialStatus, onClose, setColumns, setTasks }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<"low" | "medium" | "high" | "">("");
+  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [assignedTo, setAssignedTo] = useState("");
-  const [storyPoints, setStoryPoints] = useState<number | "">("");
+  const [storyPoints, setStoryPoints] = useState<number>(1);
   
   const { addTask, getSprint } = useProjects();
   const sprint = getSprint(sprintId);
@@ -436,22 +560,50 @@ const NewTaskForm: React.FC<{
       return;
     }
     
+    if (!description.trim()) {
+      toast.error("Task description is required");
+      return;
+    }
+    
+    if (!storyPoints || storyPoints < 1) {
+      toast.error("Task must have at least 1 story point");
+      return;
+    }
+    
     if (!sprint) {
       toast.error("Sprint not found");
       return;
     }
     
     try {
-      await addTask({
+      const newTask = await addTask({
         title,
         description,
         sprintId,
         projectId: sprint.projectId,
         status: initialStatus as any,
-        assignedTo: assignedTo || undefined,
-        priority: priority || undefined,
-        storyPoints: typeof storyPoints === 'number' ? storyPoints : undefined
+        assignedTo: assignedTo,
+        priority: priority,
+        storyPoints: storyPoints
       });
+      
+      // After successful creation, update the columns state to include the new task
+      setColumns(prevColumns => {
+        const column = prevColumns[initialStatus];
+        if (column) {
+          return {
+            ...prevColumns,
+            [initialStatus]: {
+              ...column,
+              taskIds: [...column.taskIds, newTask.id]
+            }
+          };
+        }
+        return prevColumns;
+      });
+      
+      // Update tasks state to include the new task
+      setTasks(prevTasks => [...prevTasks, newTask]);
       
       toast.success("Task created successfully");
       onClose();
@@ -491,7 +643,7 @@ const NewTaskForm: React.FC<{
         
         <div className="mb-4">
           <label className="block mb-2 text-sm">
-            Description
+            Description <span className="text-destructive">*</span>
           </label>
           <textarea
             value={description}
@@ -499,20 +651,21 @@ const NewTaskForm: React.FC<{
             className="scrum-input"
             placeholder="Task details and requirements"
             rows={3}
+            required
           />
         </div>
         
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block mb-2 text-sm">
-              Priority
+              Priority <span className="text-destructive">*</span>
             </label>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value as any)}
               className="scrum-input"
+              required
             >
-              <option value="">None</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
@@ -521,26 +674,27 @@ const NewTaskForm: React.FC<{
           
           <div>
             <label className="block mb-2 text-sm">
-              Story Points
+              Story Points <span className="text-destructive">*</span>
             </label>
             <input
               type="number"
-              min="0"
+              min="1"
               max="100"
               value={storyPoints}
               onChange={(e) => {
-                const value = e.target.value;
-                setStoryPoints(value === "" ? "" : parseInt(value));
+                const value = parseInt(e.target.value);
+                setStoryPoints(value < 1 ? 1 : value);
               }}
               className="scrum-input"
               placeholder="e.g. 5"
+              required
             />
           </div>
         </div>
         
         <div className="mb-6">
           <label className="block mb-2 text-sm">
-            Assigned To
+            Assigned To <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
@@ -548,6 +702,7 @@ const NewTaskForm: React.FC<{
             onChange={(e) => setAssignedTo(e.target.value)}
             className="scrum-input"
             placeholder="e.g. John Doe"
+            required
           />
         </div>
         

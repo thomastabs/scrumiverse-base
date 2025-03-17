@@ -1,7 +1,7 @@
 
 import React from "react";
 import { useProjects } from "@/context/ProjectContext";
-import { Edit, Trash, AlertTriangle, Star } from "lucide-react";
+import { Edit, Trash, AlertTriangle, Star, Hash } from "lucide-react";
 import { Task } from "@/types";
 import { toast } from "sonner";
 
@@ -9,9 +9,15 @@ interface TaskCardProps {
   task: Task;
   onEdit: () => void;
   isSprintCompleted?: boolean;
+  onTaskDeleted?: (taskId: string) => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, isSprintCompleted = false }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ 
+  task, 
+  onEdit, 
+  isSprintCompleted = false, 
+  onTaskDeleted 
+}) => {
   const { deleteTask } = useProjects();
 
   const getPriorityBadge = () => {
@@ -48,6 +54,12 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, isSprintCompleted = f
     if (window.confirm("Are you sure you want to delete this task?")) {
       try {
         await deleteTask(task.id);
+        
+        // Notify parent component that task has been deleted
+        if (onTaskDeleted) {
+          onTaskDeleted(task.id);
+        }
+        
         toast.success("Task deleted successfully");
       } catch (error) {
         console.error("Error deleting task:", error);
@@ -88,8 +100,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, isSprintCompleted = f
       <div className="flex flex-wrap items-center gap-2 mt-2">
         {getPriorityBadge()}
         
-        {task.storyPoints && (
-          <span className="bg-scrum-accent/30 text-xs px-2 py-0.5 rounded-full">
+        {(task.storyPoints !== undefined && task.storyPoints !== null) && (
+          <span className="bg-scrum-accent/30 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Hash className="h-3 w-3" />
             {task.storyPoints} {task.storyPoints === 1 ? "point" : "points"}
           </span>
         )}
