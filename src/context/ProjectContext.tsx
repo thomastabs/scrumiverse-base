@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { Project, Sprint, Task, BurndownData } from "@/types";
 import { useAuth } from "./AuthContext";
 import { supabase, withRetry } from "@/lib/supabase";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface ProjectContextType {
   projects: Project[];
@@ -16,7 +16,7 @@ interface ProjectContextType {
   addSprint: (sprint: Omit<Sprint, "id">) => Promise<Sprint>;
   getSprint: (id: string) => Sprint | undefined;
   updateSprint: (id: string, sprint: Partial<Omit<Sprint, "id">>) => Promise<Sprint>;
-  deleteSprint: (id: string, showToast?: boolean) => Promise<void>;
+  deleteSprint: (id: string) => Promise<void>;
   getSprintsByProject: (projectId: string) => Sprint[];
   addTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt">) => Promise<Task>;
   getTask: (id: string) => Task | undefined;
@@ -406,7 +406,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       for (const sprintId of sprintIds) {
         try {
-          await deleteSprint(sprintId, false); // Pass false to prevent showing toast for each sprint
+          await deleteSprint(sprintId);
         } catch (error) {
           console.error(`Error deleting sprint ${sprintId}:`, error);
           throw error;
@@ -442,17 +442,10 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return newData;
       });
       
-      toast({
-        title: "Success",
-        description: "Project deleted successfully"
-      });
+      toast.success("Project deleted successfully");
     } catch (error) {
       console.error('Error deleting project:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete project"
-      });
+      toast.error("Failed to delete project");
       throw error;
     }
   };
@@ -533,7 +526,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const deleteSprint = async (id: string, showToast = true) => {
+  const deleteSprint = async (id: string) => {
     if (!user) throw new Error('User not authenticated');
 
     try {
@@ -592,23 +585,11 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       setSprints(prev => prev.filter(s => s.id !== id));
       setTasks(prev => prev.filter(t => t.sprintId !== id));
-      
-      if (showToast) {
-        toast({
-          title: "Success",
-          description: "Sprint deleted successfully"
-        });
-      }
+      toast.success("Sprint deleted successfully");
       
     } catch (error) {
       console.error('Error deleting sprint:', error);
-      if (showToast) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to delete sprint"
-        });
-      }
+      toast.error("Failed to delete sprint");
       throw error;
     }
   };
