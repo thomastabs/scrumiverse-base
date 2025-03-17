@@ -43,21 +43,17 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
     }
     
     try {
-      console.log("Updating task with:", {
+      const updatedData = {
         title,
         description,
         priority,
         assignedTo,
         storyPoints
-      });
+      };
       
-      await updateTask(taskId, {
-        title,
-        description,
-        priority,
-        assignedTo,
-        storyPoints
-      });
+      console.log("Updating task with:", updatedData);
+      
+      await updateTask(taskId, updatedData);
       
       toast.success("Task updated successfully");
       onClose();
@@ -100,7 +96,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           
           <div className="mb-4">
             <label className="block mb-2 text-sm">
-              Description <span className="text-destructive">*</span>
+              Description
             </label>
             <textarea
               value={description}
@@ -117,7 +113,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
               </label>
               <select
                 value={priority}
-                onChange={(e) => setPriority(e.target.value as any)}
+                onChange={(e) => setPriority(e.target.value as "low" | "medium" | "high")}
                 className="scrum-input"
                 required
               >
@@ -138,7 +134,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 value={storyPoints}
                 onChange={(e) => {
                   const value = parseInt(e.target.value);
-                  setStoryPoints(value < 1 ? 1 : value);
+                  setStoryPoints(isNaN(value) ? 1 : Math.max(1, value));
                 }}
                 className="scrum-input"
                 required
@@ -155,6 +151,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
               className="scrum-input"
+              placeholder="Enter name or email"
             />
           </div>
           
