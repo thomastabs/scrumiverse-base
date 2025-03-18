@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useProjects } from "@/context/ProjectContext";
 import { Edit, Trash, AlertTriangle, Star, Hash, User } from "lucide-react";
@@ -72,7 +71,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   console.log("TaskCard rendering with task data:", task);
   
   // Get story points from appropriate property
-  const storyPoints = task.storyPoints !== undefined ? task.storyPoints : (task.story_points !== undefined ? task.story_points : null);
+  const storyPoints = task.storyPoints !== undefined ? task.storyPoints : task.story_points;
   
   // Get assignee from appropriate property
   const assignee = task.assignedTo || task.assign_to;
