@@ -71,6 +71,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
   // Debug the task data to check for missing fields
   console.log("TaskCard rendering with task data:", task);
   
+  // Get story points from appropriate property
+  const storyPoints = task.storyPoints !== undefined ? task.storyPoints : (task.story_points !== undefined ? task.story_points : null);
+  
+  // Get assignee from appropriate property
+  const assignee = task.assignedTo || task.assign_to;
+  
   return (
     <div className="bg-scrum-background border border-scrum-border rounded-md p-3 hover:border-scrum-highlight transition-colors">
       <div className="flex items-start justify-between mb-2">
@@ -103,19 +109,19 @@ const TaskCard: React.FC<TaskCardProps> = ({
       <div className="flex flex-wrap items-center gap-2 mt-2">
         {getPriorityBadge()}
         
-        {/* Always attempt to display story points if they exist */}
-        {(task.storyPoints !== undefined && task.storyPoints !== null) && (
+        {/* Display story points if they exist (checking both property names) */}
+        {storyPoints !== undefined && storyPoints !== null && (
           <span className="bg-scrum-accent/30 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
             <Hash className="h-3 w-3" />
-            {task.storyPoints} {task.storyPoints === 1 ? "point" : "points"}
+            {storyPoints} {storyPoints === 1 ? "point" : "points"}
           </span>
         )}
         
-        {/* Always attempt to display assignee if it exists */}
-        {task.assignedTo && (
+        {/* Display assignee if it exists (checking both property names) */}
+        {assignee && (
           <span className="bg-scrum-card text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
             <User className="h-3 w-3" />
-            {task.assignedTo}
+            {assignee}
           </span>
         )}
       </div>
