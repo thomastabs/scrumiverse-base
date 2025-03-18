@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useProjects } from "@/context/ProjectContext";
@@ -35,6 +36,7 @@ const BurndownChart: React.FC = () => {
   const { user } = useAuth();
   const [chartData, setChartData] = useState<BurndownDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [chartKey, setChartKey] = useState<number>(0); // Add a key to force re-render when needed
   
   const project = getProject(projectId || "");
   
@@ -63,11 +65,15 @@ const BurndownChart: React.FC = () => {
         await upsertBurndownData(burndownData);
         
         setChartData(burndownData);
+        setChartKey(prev => prev + 1); // Increment key to force fresh render
       } catch (error) {
         console.error("Error fetching burndown data:", error);
         toast.error("Failed to load burndown chart data");
       } finally {
-        setIsLoading(false);
+        // Use a small delay before revealing the chart to prevent flickering
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 300);
       }
     };
     
@@ -237,73 +243,84 @@ const BurndownChart: React.FC = () => {
         </p>
       </div>
       
-      <div className="scrum-card h-[500px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData}
-            margin={{
-              top: 20,
-              right: 30,
-              left: 20,
-              bottom: 10,
-            }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-            <XAxis
-              dataKey="formattedDate"
-              stroke="#777"
-              tick={{ fill: "#777" }}
-              axisLine={{ stroke: "#444" }}
-            />
-            <YAxis
-              label={{ value: "Story Points Remaining", angle: -90, position: "insideLeft", fill: "#777" }}
-              stroke="#777"
-              tick={{ fill: "#777" }}
-              axisLine={{ stroke: "#444" }}
-            />
-            <Tooltip
-              content={({ active, payload }) => {
-                if (active && payload && payload.length) {
-                  return (
-                    <div className="bg-scrum-card border border-scrum-border p-3 rounded">
-                      <p className="font-medium">{payload[0].payload.formattedDate}</p>
-                      <div className="mt-2 space-y-1">
-                        <p className="flex items-center text-sm">
-                          <span className="h-2 w-2 rounded-full bg-[#8884d8] mr-2"></span>
-                          <span>Ideal: {payload[0].value} points</span>
-                        </p>
-                        <p className="flex items-center text-sm">
-                          <span className="h-2 w-2 rounded-full bg-[#82ca9d] mr-2"></span>
-                          <span>Actual: {payload[1].value} points</span>
-                        </p>
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
+      <div className="scrum-card h-[500px] relative">
+        {isLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-scrum-card z-10">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              <p className="text-scrum-text-secondary">Loading chart data...</p>
+            </div>
+          </div>
+        ) : null}
+        
+        <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
+          <ResponsiveContainer width="100%" height="100%" key={chartKey}>
+            <LineChart
+              data={chartData}
+              margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 10,
               }}
-            />
-            <Legend
-              wrapperStyle={{ color: "#fff" }}
-            />
-            <Line
-              type="monotone"
-              dataKey="ideal"
-              stroke="#8884d8"
-              name="Ideal Burndown"
-              dot={false}
-              activeDot={{ r: 8 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="actual"
-              stroke="#82ca9d"
-              name="Actual Burndown"
-              dot={false}
-              activeDot={{ r: 8 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+              <XAxis
+                dataKey="formattedDate"
+                stroke="#777"
+                tick={{ fill: "#777" }}
+                axisLine={{ stroke: "#444" }}
+              />
+              <YAxis
+                label={{ value: "Story Points Remaining", angle: -90, position: "insideLeft", fill: "#777" }}
+                stroke="#777"
+                tick={{ fill: "#777" }}
+                axisLine={{ stroke: "#444" }}
+              />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-scrum-card border border-scrum-border p-3 rounded">
+                        <p className="font-medium">{payload[0].payload.formattedDate}</p>
+                        <div className="mt-2 space-y-1">
+                          <p className="flex items-center text-sm">
+                            <span className="h-2 w-2 rounded-full bg-[#8884d8] mr-2"></span>
+                            <span>Ideal: {payload[0].value} points</span>
+                          </p>
+                          <p className="flex items-center text-sm">
+                            <span className="h-2 w-2 rounded-full bg-[#82ca9d] mr-2"></span>
+                            <span>Actual: {payload[1].value} points</span>
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Legend
+                wrapperStyle={{ color: "#fff" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="ideal"
+                stroke="#8884d8"
+                name="Ideal Burndown"
+                dot={false}
+                activeDot={{ r: 8 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="actual"
+                stroke="#82ca9d"
+                name="Actual Burndown"
+                dot={false}
+                activeDot={{ r: 8 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
       
       <div className="scrum-card mt-6 p-4">
