@@ -67,6 +67,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
       }
     }
   };
+
+  // Debug the task data to check for missing fields
+  console.log("TaskCard rendering with task data:", task);
   
   return (
     <div className="bg-scrum-background border border-scrum-border rounded-md p-3 hover:border-scrum-highlight transition-colors">
@@ -100,6 +103,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
       <div className="flex flex-wrap items-center gap-2 mt-2">
         {getPriorityBadge()}
         
+        {/* Always attempt to display story points if they exist */}
         {(task.storyPoints !== undefined && task.storyPoints !== null) && (
           <span className="bg-scrum-accent/30 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
             <Hash className="h-3 w-3" />
@@ -107,6 +111,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </span>
         )}
         
+        {/* Always attempt to display assignee if it exists */}
         {task.assignedTo && (
           <span className="bg-scrum-card text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
             <User className="h-3 w-3" />
