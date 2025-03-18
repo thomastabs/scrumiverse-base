@@ -600,8 +600,8 @@ const NewTaskForm: React.FC<{
         const formattedCollaborators = collaboratorsData?.map(collab => ({
           id: collab.id,
           userId: collab.userId,
-          username: collab.users?.username || '',
-          email: collab.users?.email || '',
+          username: collab.users ? (collab.users as any).username || '' : '',
+          email: collab.users ? (collab.users as any).email || '' : '',
           role: collab.role as ProjectRole,
           createdAt: collab.createdAt
         })) || [];
