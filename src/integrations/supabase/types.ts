@@ -230,6 +230,7 @@ export type Database = {
         Row: {
           assign_to: string | null
           column_id: string | null
+          completion_date: string | null
           created_at: string | null
           description: string | null
           id: string
@@ -244,6 +245,7 @@ export type Database = {
         Insert: {
           assign_to?: string | null
           column_id?: string | null
+          completion_date?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -258,6 +260,7 @@ export type Database = {
         Update: {
           assign_to?: string | null
           column_id?: string | null
+          completion_date?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
