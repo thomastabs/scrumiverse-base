@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -50,7 +49,7 @@ export interface BurndownData {
   actual: number;
 }
 
-export type ProjectRole = 'viewer' | 'member' | 'admin';
+export type ProjectRole = 'product_owner' | 'team_member' | 'scrum_master';
 
 export interface Collaborator {
   id: string;
