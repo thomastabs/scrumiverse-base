@@ -58,14 +58,14 @@ export default {
 					foreground: '#ffffff'
 				},
 				scrum: {
-					background: 'hsl(var(--scrum-background))',
-					card: 'hsl(var(--scrum-card))',
-					accent: 'hsl(var(--scrum-accent))',
-					highlight: 'hsl(var(--scrum-highlight))',
-					border: 'hsl(var(--scrum-border))',
+					DEFAULT: '#111111',
+					card: '#181818',
+					accent: '#222222',
+					highlight: '#2a2a2a',
+					border: '#333333',
 					text: {
-						primary: 'hsl(var(--scrum-text-primary))',
-						secondary: 'hsl(var(--scrum-text-secondary))',
+						primary: '#ffffff',
+						secondary: '#a0a0a0',
 						muted: '#777777'
 					}
 				}
