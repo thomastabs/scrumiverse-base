@@ -34,7 +34,8 @@ const ProjectTeam: React.FC = () => {
           setOwner({
             id: project.ownerId,
             username: project.ownerName,
-            email: project.ownerEmail // This might be undefined, but we'll handle it in the UI
+            // Fixed: Use optional chaining to access potentially undefined property
+            email: project.owner?.email || undefined
           });
         }
       } catch (error) {

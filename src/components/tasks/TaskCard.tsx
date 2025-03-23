@@ -78,7 +78,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   // Get assignee from appropriate property
   const assignee = task.assignedTo || task.assign_to;
   
-  // Get completion date from appropriate property
+  // Get completion date from appropriate property - improved handling
   const completionDate = task.completionDate || task.completion_date;
   
   return (
@@ -129,8 +129,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </span>
         )}
         
-        {/* Display completion date if it exists */}
-        {completionDate && task.status === "done" && (
+        {/* Always display completion date if it exists, regardless of task status */}
+        {completionDate && (
           <span className="bg-green-700/30 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {format(parseISO(completionDate), "MMM d, yyyy")}

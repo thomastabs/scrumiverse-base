@@ -415,7 +415,7 @@ export const upsertBurndownData = async (
   }
 };
 
-// Add a new helper to update a task with completion date
+// Helper function to update a task with completion date - IMPROVED PERSISTENCE
 export const updateTaskWithCompletionDate = async (taskId: string, data: {
   title?: string;
   description?: string;
@@ -427,28 +427,40 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
 }) => {
   try {
     return await withRetry(async () => {
-      // Add completion_date to the update when status is changed to done
+      // Get the current task data first
+      const { data: existingTask, error: fetchError } = await supabase
+        .from('tasks')
+        .select('status, completion_date')
+        .eq('id', taskId)
+        .single();
+        
+      if (fetchError) {
+        console.error('Error fetching existing task data:', fetchError);
+        throw fetchError;
+      }
+      
       let updateData = { ...data };
       
-      // If status is 'done' and no completion_date provided, set to today
-      if (data.status === 'done' && !data.completion_date) {
-        updateData.completion_date = new Date().toISOString().split('T')[0];
-      } 
-      // Never clear the completion date once it's set
-      // This is the key change to maintain persistence
-      else if (data.status && data.status !== 'done' && 'completion_date' in data && !data.completion_date) {
-        // If completion_date is explicitly set to null/undefined, retrieve the existing value
-        const { data: existingTask, error: fetchError } = await supabase
-          .from('tasks')
-          .select('completion_date')
-          .eq('id', taskId)
-          .single();
-          
-        if (!fetchError && existingTask && existingTask.completion_date) {
-          // Preserve the existing completion date
-          updateData.completion_date = existingTask.completion_date;
-        }
+      // Handle completion date logic:
+      // 1. If explicitly provided in update, use the new value
+      // 2. If changing to "done" status and no completion date exists, set to today
+      // 3. If task already has a completion date, preserve it
+      if ('completion_date' in data && data.completion_date) {
+        // Case 1: Use explicitly provided completion date
+        console.log(`Setting completion date to provided value: ${data.completion_date}`);
+        updateData.completion_date = data.completion_date;
+      } else if (data.status === 'done' && (!existingTask.completion_date || existingTask.status !== 'done')) {
+        // Case 2: Changing to done status without completion date - set to today
+        const todayDate = new Date().toISOString().split('T')[0];
+        console.log(`Setting completion date to today: ${todayDate}`);
+        updateData.completion_date = todayDate;
+      } else if (existingTask.completion_date && !('completion_date' in data)) {
+        // Case 3: Preserve existing completion date if it exists and not explicitly trying to change it
+        console.log(`Preserving existing completion date: ${existingTask.completion_date}`);
+        updateData.completion_date = existingTask.completion_date;
       }
+      
+      console.log('Final update data:', updateData);
       
       const { data: updatedTask, error } = await supabase
         .from('tasks')
