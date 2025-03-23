@@ -81,6 +81,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
   // Get completion date from appropriate property - improved handling
   const completionDate = task.completionDate || task.completion_date;
   
+  // Add more logging to troubleshoot completion date issues
+  if (completionDate) {
+    console.log(`Task ${task.id} has completion date: ${completionDate}`);
+  } else {
+    console.log(`Task ${task.id} has no completion date`);
+  }
+  
   return (
     <div className="bg-scrum-background border border-scrum-border rounded-md p-3 hover:border-scrum-highlight transition-colors">
       <div className="flex items-start justify-between mb-2">

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { useProjects } from "@/context/ProjectContext";
 import { X, Edit, User, Calendar } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+import { supabase, updateTaskWithCompletionDate } from "@/lib/supabase";
 import { ProjectRole, Collaborator } from "@/types";
 import {
   Select,
@@ -54,10 +55,14 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       setStatus(task.status || "todo");
       setPreviousStatus(task.status || "todo");
       
-      if (task.completionDate || task.completion_date) {
-        const dateStr = task.completionDate || task.completion_date;
-        console.log("Setting completion date from task:", dateStr);
-        setCompletionDate(dateStr ? parseISO(dateStr) : undefined);
+      // Improved completion date handling - check both property names and log for debugging
+      const dateStr = task.completionDate || task.completion_date;
+      if (dateStr) {
+        console.log("Found completion date in task:", dateStr);
+        setCompletionDate(parseISO(dateStr));
+      } else {
+        console.log("No completion date found in task");
+        setCompletionDate(undefined);
       }
       
       if (task.projectId) {
@@ -132,6 +137,8 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
     }
     
     try {
+      // Always include the completionDate in the update payload, even if it's undefined
+      // This ensures we're explicitly telling the API about the completion date state
       const updatedData = {
         title,
         description,
@@ -144,6 +151,31 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       
       console.log("Updating task with:", updatedData);
       
+      // Use updateTaskWithCompletionDate directly to ensure proper persistence
+      if (status === "done" && !completionDate) {
+        // If task is marked as done but has no completion date, set it to today
+        const today = new Date();
+        setCompletionDate(today);
+        updatedData.completionDate = format(today, "yyyy-MM-dd");
+      }
+      
+      // First update in Supabase directly
+      try {
+        await updateTaskWithCompletionDate(taskId, {
+          title: updatedData.title,
+          description: updatedData.description,
+          status: updatedData.status,
+          priority: updatedData.priority,
+          story_points: updatedData.storyPoints,
+          assign_to: updatedData.assignedTo,
+          completion_date: updatedData.completionDate
+        });
+        console.log("Successfully updated task in Supabase");
+      } catch (supabaseError) {
+        console.error("Error updating task in Supabase:", supabaseError);
+      }
+      
+      // Then update via context to refresh local state
       await updateTask(taskId, updatedData);
       
       toast.success("Task updated successfully");
@@ -261,6 +293,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
             <div>
               <label className="block mb-2 text-sm">
                 Completion Date
+                {status === "done" && !completionDate && <span className="text-yellow-500 ml-1">(will set to today)</span>}
               </label>
               <Popover>
                 <PopoverTrigger asChild>

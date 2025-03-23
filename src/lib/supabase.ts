@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { Collaborator, BurndownData as BurndownDataType } from '@/types';
 
@@ -427,7 +428,7 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
 }) => {
   try {
     return await withRetry(async () => {
-      // Get the current task data first
+      // Get the current task data first to ensure we don't lose data
       const { data: existingTask, error: fetchError } = await supabase
         .from('tasks')
         .select('status, completion_date')
@@ -439,28 +440,42 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
         throw fetchError;
       }
       
+      console.log('Existing task data from database:', existingTask);
+      
       let updateData = { ...data };
       
-      // Handle completion date logic:
+      // Handle completion date logic with more explicit checks:
       // 1. If explicitly provided in update, use the new value
       // 2. If changing to "done" status and no completion date exists, set to today
-      // 3. If task already has a completion date, preserve it
-      if ('completion_date' in data && data.completion_date) {
-        // Case 1: Use explicitly provided completion date
-        console.log(`Setting completion date to provided value: ${data.completion_date}`);
-        updateData.completion_date = data.completion_date;
+      // 3. If task already has a completion date, always preserve it unless explicitly changed
+      
+      if ('completion_date' in data) {
+        if (data.completion_date) {
+          // Case 1: Use explicitly provided completion date
+          console.log(`Setting completion date to provided value: ${data.completion_date}`);
+          updateData.completion_date = data.completion_date;
+        } else if (data.status === 'done') {
+          // When explicitly setting to undefined but status is done, set to today
+          const todayDate = new Date().toISOString().split('T')[0];
+          console.log(`Task is done but no completion date provided, setting to today: ${todayDate}`);
+          updateData.completion_date = todayDate;
+        } else {
+          // If explicitly setting to undefined and status is not done, respect that
+          console.log(`Explicitly clearing completion date`);
+          updateData.completion_date = null;
+        }
       } else if (data.status === 'done' && (!existingTask.completion_date || existingTask.status !== 'done')) {
         // Case 2: Changing to done status without completion date - set to today
         const todayDate = new Date().toISOString().split('T')[0];
         console.log(`Setting completion date to today: ${todayDate}`);
         updateData.completion_date = todayDate;
-      } else if (existingTask.completion_date && !('completion_date' in data)) {
+      } else if (existingTask.completion_date) {
         // Case 3: Preserve existing completion date if it exists and not explicitly trying to change it
         console.log(`Preserving existing completion date: ${existingTask.completion_date}`);
         updateData.completion_date = existingTask.completion_date;
       }
       
-      console.log('Final update data:', updateData);
+      console.log('Final update data for task:', updateData);
       
       const { data: updatedTask, error } = await supabase
         .from('tasks')
@@ -469,7 +484,12 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
         .select()
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating task in database:', error);
+        throw error;
+      }
+      
+      console.log('Successfully updated task in database:', updatedTask);
       return updatedTask;
     });
   } catch (error) {
