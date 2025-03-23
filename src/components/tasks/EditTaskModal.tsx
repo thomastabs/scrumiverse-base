@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from "react";
 import { useProjects } from "@/context/ProjectContext";
 import { X, Edit, User, Calendar } from "lucide-react";
 import { toast } from "sonner";
-import { supabase, updateTaskWithCompletionDate } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { ProjectRole, Collaborator } from "@/types";
 import {
   Select,
@@ -55,28 +54,12 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       setStatus(task.status || "todo");
       setPreviousStatus(task.status || "todo");
       
-      // First directly check if this task data has a completion date from either property
-      const dateStr = task.completionDate || task.completion_date;
-      
-      // Log what we found for debugging
-      console.log("Task completion date from task object:", dateStr);
-      
-      // If we have a date string, try to parse it as a date
-      if (dateStr) {
-        try {
-          const parsedDate = parseISO(dateStr);
-          console.log("Parsed completion date:", parsedDate);
-          setCompletionDate(parsedDate);
-        } catch (error) {
-          console.error("Error parsing completion date:", error);
-          setCompletionDate(undefined);
-        }
-      } else {
-        console.log("No completion date found in task");
-        setCompletionDate(undefined);
+      if (task.completionDate || task.completion_date) {
+        const dateStr = task.completionDate || task.completion_date;
+        console.log("Setting completion date from task:", dateStr);
+        setCompletionDate(dateStr ? parseISO(dateStr) : undefined);
       }
       
-      // If the task is in a project, fetch collaborators
       if (task.projectId) {
         fetchCollaborators(task.projectId);
       }
@@ -149,14 +132,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
     }
     
     try {
-      // Format the completion date for database storage if it exists
-      const formattedCompletionDate = completionDate 
-        ? format(completionDate, "yyyy-MM-dd") 
-        : (status === "done" ? format(new Date(), "yyyy-MM-dd") : null);
-      
-      console.log("Submitting task with completion date:", formattedCompletionDate);
-      
-      // Create the update payload
       const updatedData = {
         title,
         description,
@@ -164,30 +139,11 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         assignedTo,
         storyPoints,
         status,
-        completionDate: formattedCompletionDate
+        completionDate: completionDate ? format(completionDate, "yyyy-MM-dd") : undefined
       };
       
       console.log("Updating task with:", updatedData);
       
-      // First update directly in Supabase to ensure completion date is saved properly
-      try {
-        const response = await updateTaskWithCompletionDate(taskId, {
-          title: updatedData.title,
-          description: updatedData.description,
-          status: updatedData.status,
-          priority: updatedData.priority,
-          story_points: updatedData.storyPoints,
-          assign_to: updatedData.assignedTo,
-          completion_date: updatedData.completionDate
-        });
-        
-        console.log("Supabase direct update response:", response);
-      } catch (supabaseError) {
-        console.error("Error updating task in Supabase:", supabaseError);
-        throw supabaseError;
-      }
-      
-      // Then update via context to refresh local state
       await updateTask(taskId, updatedData);
       
       toast.success("Task updated successfully");
@@ -305,7 +261,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
             <div>
               <label className="block mb-2 text-sm">
                 Completion Date
-                {status === "done" && !completionDate && <span className="text-yellow-500 ml-1">(will set to today)</span>}
               </label>
               <Popover>
                 <PopoverTrigger asChild>

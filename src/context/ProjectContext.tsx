@@ -1,8 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Project, Sprint, Task, BurndownData } from "@/types";
 import { useAuth } from "./AuthContext";
-import { supabase, withRetry, updateTaskWithCompletionDate } from "@/lib/supabase";
+import { supabase, withRetry } from "@/lib/supabase";
 import { toast } from "sonner";
 
 interface ProjectContextType {
@@ -675,49 +674,42 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       console.log('Updating task with data:', { id, ...task });
 
-      // Prepare data for both Supabase and context update
       const updateData: any = {
         title: task.title,
         description: task.description,
         status: task.status,
         assign_to: task.assignedTo,
         story_points: task.storyPoints,
-        priority: task.priority,
         sprint_id: task.sprintId
       };
       
-      // Handle completion date with better persistence
       if ('completionDate' in task) {
         updateData.completion_date = task.completionDate;
-        console.log(`Setting completion_date to ${task.completionDate}`);
-      } else if (existingTask.completionDate || existingTask.completion_date) {
-        // Preserve existing completion date if not explicitly changing it
-        const existingDate = existingTask.completionDate || existingTask.completion_date;
-        updateData.completion_date = existingDate;
-        console.log(`Preserving existing completion_date: ${existingDate}`);
-      } else if (task.status === 'done' && existingTask.status !== 'done') {
-        // Set completion date to today when marking as done
-        const todayDate = new Date().toISOString().split('T')[0];
-        updateData.completion_date = todayDate;
-        console.log(`Setting completion_date to today (${todayDate}) for newly completed task`);
       }
 
-      // Use the improved Supabase function for better persistence
-      try {
-        await updateTaskWithCompletionDate(id, updateData);
-        console.log('Task updated in Supabase successfully');
-      } catch (supabaseError) {
-        console.error('Supabase update error:', supabaseError);
-        throw supabaseError;
+      const { error } = await supabase
+        .from('tasks')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw error;
       }
 
-      // Update local state
       const updatedTask = {
         ...existingTask,
         ...task,
-        completionDate: updateData.completion_date, // Make sure to include in the local state
         updatedAt: new Date().toISOString(),
       };
+
+      if (!('completionDate' in task) && existingTask.completionDate) {
+        updatedTask.completionDate = existingTask.completionDate;
+      }
+      
+      if (task.status === 'done' && existingTask.status !== 'done' && !updatedTask.completionDate) {
+        updatedTask.completionDate = new Date().toISOString().split('T')[0];
+      }
 
       setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
       
