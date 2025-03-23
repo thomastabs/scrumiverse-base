@@ -55,16 +55,28 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       setStatus(task.status || "todo");
       setPreviousStatus(task.status || "todo");
       
-      // Improved completion date handling - check both property names and log for debugging
+      // First directly check if this task data has a completion date from either property
       const dateStr = task.completionDate || task.completion_date;
+      
+      // Log what we found for debugging
+      console.log("Task completion date from task object:", dateStr);
+      
+      // If we have a date string, try to parse it as a date
       if (dateStr) {
-        console.log("Found completion date in task:", dateStr);
-        setCompletionDate(parseISO(dateStr));
+        try {
+          const parsedDate = parseISO(dateStr);
+          console.log("Parsed completion date:", parsedDate);
+          setCompletionDate(parsedDate);
+        } catch (error) {
+          console.error("Error parsing completion date:", error);
+          setCompletionDate(undefined);
+        }
       } else {
         console.log("No completion date found in task");
         setCompletionDate(undefined);
       }
       
+      // If the task is in a project, fetch collaborators
       if (task.projectId) {
         fetchCollaborators(task.projectId);
       }
@@ -137,8 +149,14 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
     }
     
     try {
-      // Always include the completionDate in the update payload, even if it's undefined
-      // This ensures we're explicitly telling the API about the completion date state
+      // Format the completion date for database storage if it exists
+      const formattedCompletionDate = completionDate 
+        ? format(completionDate, "yyyy-MM-dd") 
+        : (status === "done" ? format(new Date(), "yyyy-MM-dd") : null);
+      
+      console.log("Submitting task with completion date:", formattedCompletionDate);
+      
+      // Create the update payload
       const updatedData = {
         title,
         description,
@@ -146,22 +164,14 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         assignedTo,
         storyPoints,
         status,
-        completionDate: completionDate ? format(completionDate, "yyyy-MM-dd") : undefined
+        completionDate: formattedCompletionDate
       };
       
       console.log("Updating task with:", updatedData);
       
-      // Use updateTaskWithCompletionDate directly to ensure proper persistence
-      if (status === "done" && !completionDate) {
-        // If task is marked as done but has no completion date, set it to today
-        const today = new Date();
-        setCompletionDate(today);
-        updatedData.completionDate = format(today, "yyyy-MM-dd");
-      }
-      
-      // First update in Supabase directly
+      // First update directly in Supabase to ensure completion date is saved properly
       try {
-        await updateTaskWithCompletionDate(taskId, {
+        const response = await updateTaskWithCompletionDate(taskId, {
           title: updatedData.title,
           description: updatedData.description,
           status: updatedData.status,
@@ -170,9 +180,11 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           assign_to: updatedData.assignedTo,
           completion_date: updatedData.completionDate
         });
-        console.log("Successfully updated task in Supabase");
+        
+        console.log("Supabase direct update response:", response);
       } catch (supabaseError) {
         console.error("Error updating task in Supabase:", supabaseError);
+        throw supabaseError;
       }
       
       // Then update via context to refresh local state
