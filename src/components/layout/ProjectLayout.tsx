@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from "react";
 import { Outlet, useParams, useNavigate, useLocation } from "react-router-dom";
 import { useProjects } from "@/context/ProjectContext";
 import { useAuth } from "@/context/AuthContext";
 import NavLink from "@/components/ui/NavLink";
-import { ArrowLeft, LayoutGrid, List, LineChart, Edit, Trash, Package, Users } from "lucide-react";
+import { ArrowLeft, LayoutGrid, List, LineChart, Edit, Trash, Package, Users, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { fetchProjectCollaborators } from "@/lib/supabase";
 import { Collaborator, ProjectRole } from "@/types";
@@ -190,9 +191,14 @@ const ProjectLayout: React.FC = () => {
             <span>Burndown Chart</span>
           </NavLink>
           
+          <NavLink to={`/projects/${project.id}/team`}>
+            <Users className="h-4 w-4 mr-1" />
+            <span>Team</span>
+          </NavLink>
+          
           {isOwner && (
             <NavLink to={`/projects/${project.id}/collaborators`}>
-              <Users className="h-4 w-4 mr-1" />
+              <MessageSquare className="h-4 w-4 mr-1" />
               <span>Collaborators</span>
             </NavLink>
           )}

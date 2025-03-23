@@ -434,9 +434,20 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
       if (data.status === 'done' && !data.completion_date) {
         updateData.completion_date = new Date().toISOString().split('T')[0];
       } 
-      // If status is not 'done', clear the completion date
-      else if (data.status && data.status !== 'done') {
-        updateData.completion_date = null;
+      // Never clear the completion date once it's set
+      // This is the key change to maintain persistence
+      else if (data.status && data.status !== 'done' && 'completion_date' in data && !data.completion_date) {
+        // If completion_date is explicitly set to null/undefined, retrieve the existing value
+        const { data: existingTask, error: fetchError } = await supabase
+          .from('tasks')
+          .select('completion_date')
+          .eq('id', taskId)
+          .single();
+          
+        if (!fetchError && existingTask && existingTask.completion_date) {
+          // Preserve the existing completion date
+          updateData.completion_date = existingTask.completion_date;
+        }
       }
       
       const { data: updatedTask, error } = await supabase
@@ -451,6 +462,53 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
     });
   } catch (error) {
     console.error('Error updating task with completion date:', error);
+    throw error;
+  }
+};
+
+// Let's add a new helper to fetch chat messages with qualified column names
+export const fetchProjectChatMessages = async (projectId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('chat_messages.id, chat_messages.project_id, chat_messages.user_id, chat_messages.username, chat_messages.message, chat_messages.created_at')
+      .eq('chat_messages.project_id', projectId)
+      .order('chat_messages.created_at', { ascending: true });
+      
+    if (error) {
+      console.error('Error fetching chat messages:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchProjectChatMessages:', error);
+    return [];
+  }
+};
+
+// Add a new helper to send chat messages with explicit column references
+export const sendProjectChatMessage = async (projectId: string, userId: string, username: string, message: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        project_id: projectId,
+        user_id: userId,
+        username: username,
+        message: message
+      })
+      .select('chat_messages.id')
+      .single();
+      
+    if (error) {
+      console.error('Error sending chat message:', error);
+      throw error;
+    }
+    
+    return data?.id || null;
+  } catch (error) {
+    console.error('Error in sendProjectChatMessage:', error);
     throw error;
   }
 };

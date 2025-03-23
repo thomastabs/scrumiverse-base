@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -26,14 +25,19 @@
     --ring: 240 5.9% 10%;
     --radius: 0.5rem;
     
-    /* Scrum-specific light mode */
-    --scrum-background: 0 0% 98%;
+    /* Scrum-specific light mode with improved contrast */
+    --scrum-background: 0 0% 96%;
     --scrum-card: 0 0% 100%;
-    --scrum-border: 240 6% 90%;
-    --scrum-accent: 210 100% 50%;
-    --scrum-highlight: 210 100% 60%;
-    --scrum-text-primary: 240 10% 3.9%;
-    --scrum-text-secondary: 240 3.8% 46.1%;
+    --scrum-border: 240 6% 80%;
+    --scrum-accent: 220 70% 50%;  /* Blue for better visibility */
+    --scrum-highlight: 220 70% 40%;  /* Darker blue for hover state */
+    --scrum-text-primary: 240 10% 10%;
+    --scrum-text-secondary: 240 3.8% 40%;
+    --scrum-chart-grid: 0 0% 85%;
+    --scrum-chart-axis: 0 0% 45%;
+    --scrum-chart-line-1: 235 80% 50%;
+    --scrum-chart-line-2: 145 63% 42%;
+    --scrum-chart-reference: 354 70% 54%;
   }
 
   .dark {
@@ -59,12 +63,17 @@
     
     /* Scrum-specific dark mode */
     --scrum-background: 0 0% 6%;
-    --scrum-card: 0 0% 9%;
+    --scrum-card: 0 0% 12%;
     --scrum-border: 0 0% 18%;
-    --scrum-accent: 210 100% 33%;
-    --scrum-highlight: 210 100% 43%;
+    --scrum-accent: 220 70% 50%;  /* Same blue for consistency */
+    --scrum-highlight: 220 70% 60%;  /* Lighter blue for hover in dark mode */
     --scrum-text-primary: 0 0% 98%;
     --scrum-text-secondary: 0 0% 70%;
+    --scrum-chart-grid: 0 0% 25%;
+    --scrum-chart-axis: 0 0% 45%;
+    --scrum-chart-line-1: 235 80% 70%;
+    --scrum-chart-line-2: 145 63% 50%;
+    --scrum-chart-reference: 354 70% 64%;
   }
 
   * {
@@ -77,7 +86,6 @@
     font-feature-settings: "ss01";
   }
 
-  /* Custom scrollbar style */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -102,7 +110,7 @@
   }
   
   .scrum-button {
-    @apply bg-white text-black dark:bg-white dark:text-black hover:bg-opacity-90 py-2 px-4 rounded-md transition-all duration-200 font-medium;
+    @apply bg-black text-white hover:bg-opacity-90 dark:bg-scrum-accent dark:text-white dark:hover:bg-scrum-highlight py-2 px-4 rounded-md transition-all duration-200 font-medium;
   }
   
   .scrum-button-secondary {
@@ -133,4 +141,33 @@
 
 .saturate-on-hover:hover {
   filter: saturate(1.2);
+}
+
+/* Custom animations for chat */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
 }
