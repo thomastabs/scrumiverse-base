@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { useProjects } from "@/context/ProjectContext";
 import { useAuth } from "@/context/AuthContext";
 import { fetchProjectCollaborators } from "@/lib/supabase";
-import { Users, MessageSquare } from "lucide-react";
+import { Users, MessageSquare, Mail } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collaborator } from "@/types";
 import ProjectChat from "@/components/chat/ProjectChat";
@@ -15,7 +15,7 @@ const ProjectTeam: React.FC = () => {
   const { user } = useAuth();
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [owner, setOwner] = useState<{id: string, username: string} | null>(null);
+  const [owner, setOwner] = useState<{id: string, username: string, email?: string} | null>(null);
   
   const project = getProject(projectId || "");
   
@@ -33,7 +33,8 @@ const ProjectTeam: React.FC = () => {
         if (project?.ownerId && project?.ownerName) {
           setOwner({
             id: project.ownerId,
-            username: project.ownerName
+            username: project.ownerName,
+            email: project.ownerEmail // This might be undefined, but we'll handle it in the UI
           });
         }
       } catch (error) {
@@ -87,19 +88,25 @@ const ProjectTeam: React.FC = () => {
           <div className="scrum-card p-6">
             <h3 className="text-lg font-semibold mb-4">Project Owner</h3>
             {owner ? (
-              <div className="flex items-center gap-3 p-3 bg-scrum-background rounded-md border border-scrum-border">
-                <div className="h-10 w-10 bg-scrum-accent/20 rounded-full flex items-center justify-center">
+              <div className="flex items-center gap-3 p-3 bg-background rounded-md border border-border">
+                <div className="h-10 w-10 bg-accent/20 rounded-full flex items-center justify-center">
                   <span className="text-lg font-semibold">{owner.username.charAt(0).toUpperCase()}</span>
                 </div>
-                <div>
+                <div className="flex-1">
                   <div className="font-medium">{owner.username}</div>
-                  <div className="text-xs px-2 py-1 rounded-full inline-block bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                  {owner.email && (
+                    <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                      <Mail className="h-3 w-3" />
+                      <span>{owner.email}</span>
+                    </div>
+                  )}
+                  <div className="text-xs px-2 py-1 rounded-full inline-block bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 mt-1">
                     Owner
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="text-scrum-text-secondary">Owner information not available</div>
+              <div className="text-muted-foreground">Owner information not available</div>
             )}
           </div>
           
@@ -108,13 +115,19 @@ const ProjectTeam: React.FC = () => {
             {collaborators.length > 0 ? (
               <div className="space-y-3">
                 {collaborators.map(collab => (
-                  <div key={collab.id} className="flex items-center gap-3 p-3 bg-scrum-background rounded-md border border-scrum-border">
-                    <div className="h-10 w-10 bg-scrum-accent/20 rounded-full flex items-center justify-center">
+                  <div key={collab.id} className="flex items-center gap-3 p-3 bg-background rounded-md border border-border">
+                    <div className="h-10 w-10 bg-accent/20 rounded-full flex items-center justify-center">
                       <span className="text-lg font-semibold">{collab.username.charAt(0).toUpperCase()}</span>
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <div className="font-medium">{collab.username}</div>
-                      <div className={`text-xs px-2 py-1 rounded-full inline-block ${getRoleBadgeClass(collab.role)}`}>
+                      {collab.email && (
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Mail className="h-3 w-3" />
+                          <span>{collab.email}</span>
+                        </div>
+                      )}
+                      <div className={`text-xs px-2 py-1 rounded-full inline-block ${getRoleBadgeClass(collab.role)} mt-1`}>
                         {collab.role === 'scrum_master' ? 'Scrum Master' : 
                          collab.role === 'product_owner' ? 'Product Owner' : 
                          'Team Member'}
@@ -124,7 +137,7 @@ const ProjectTeam: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-scrum-text-secondary">No team members yet</div>
+              <div className="text-muted-foreground">No team members yet</div>
             )}
           </div>
         </TabsContent>

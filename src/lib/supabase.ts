@@ -471,9 +471,9 @@ export const fetchProjectChatMessages = async (projectId: string) => {
   try {
     const { data, error } = await supabase
       .from('chat_messages')
-      .select('chat_messages.id, chat_messages.project_id, chat_messages.user_id, chat_messages.username, chat_messages.message, chat_messages.created_at')
-      .eq('chat_messages.project_id', projectId)
-      .order('chat_messages.created_at', { ascending: true });
+      .select('id, project_id, user_id, username, message, created_at')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: true });
       
     if (error) {
       console.error('Error fetching chat messages:', error);
@@ -498,7 +498,7 @@ export const sendProjectChatMessage = async (projectId: string, userId: string, 
         username: username,
         message: message
       })
-      .select('chat_messages.id')
+      .select('id')
       .single();
       
     if (error) {
