@@ -423,10 +423,12 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
   priority?: string;
   story_points?: number;
   assign_to?: string;
-  completion_date?: string;
+  completion_date?: string | null;
 }) => {
   try {
     return await withRetry(async () => {
+      console.log("Updating task with completion date - Initial data:", JSON.stringify(data));
+      
       // Get the current task data first
       const { data: existingTask, error: fetchError } = await supabase
         .from('tasks')
@@ -439,14 +441,16 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
         throw fetchError;
       }
       
+      console.log("Existing task data:", JSON.stringify(existingTask));
+      
       let updateData = { ...data };
       
       // Handle completion date logic:
-      // 1. If explicitly provided in update, use the new value
+      // 1. If explicitly provided in update (even if null), use the new value
       // 2. If changing to "done" status and no completion date exists, set to today
       // 3. If task already has a completion date, preserve it
-      if ('completion_date' in data && data.completion_date) {
-        // Case 1: Use explicitly provided completion date
+      if ('completion_date' in data) {
+        // Case 1: Use explicitly provided completion date (even if null)
         console.log(`Setting completion date to provided value: ${data.completion_date}`);
         updateData.completion_date = data.completion_date;
       } else if (data.status === 'done' && (!existingTask.completion_date || existingTask.status !== 'done')) {
@@ -460,7 +464,7 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
         updateData.completion_date = existingTask.completion_date;
       }
       
-      console.log('Final update data:', updateData);
+      console.log('Final update data:', JSON.stringify(updateData));
       
       const { data: updatedTask, error } = await supabase
         .from('tasks')

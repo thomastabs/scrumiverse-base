@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useProjects } from "@/context/ProjectContext";
 import { X, Edit, User, Calendar } from "lucide-react";
@@ -44,7 +45,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
     const task = getTask(taskId);
     
     if (task) {
-      console.log("Loading task data:", task);
+      console.log("Loading task data in EditTaskModal:", task);
       setTitle(task.title);
       setDescription(task.description || "");
       setPriority(task.priority || "medium");
@@ -54,10 +55,20 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       setStatus(task.status || "todo");
       setPreviousStatus(task.status || "todo");
       
-      if (task.completionDate || task.completion_date) {
-        const dateStr = task.completionDate || task.completion_date;
+      // Handle completion date with more robust logging
+      const dateStr = task.completionDate || task.completion_date;
+      if (dateStr) {
         console.log("Setting completion date from task:", dateStr);
-        setCompletionDate(dateStr ? parseISO(dateStr) : undefined);
+        try {
+          const parsedDate = parseISO(dateStr);
+          console.log("Parsed date:", parsedDate);
+          setCompletionDate(parsedDate);
+        } catch (err) {
+          console.error("Error parsing date:", err, "Date string was:", dateStr);
+        }
+      } else {
+        console.log("No completion date found in task");
+        setCompletionDate(undefined);
       }
       
       if (task.projectId) {
@@ -139,7 +150,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         assignedTo,
         storyPoints,
         status,
-        completionDate: completionDate ? format(completionDate, "yyyy-MM-dd") : undefined
+        completionDate: completionDate ? format(completionDate, "yyyy-MM-dd") : null
       };
       
       console.log("Updating task with:", updatedData);
