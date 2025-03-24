@@ -66,7 +66,7 @@ const ProjectTeam: React.FC = () => {
         const { data, error } = await supabase
           .from('chat_messages')
           .select('id, message, user_id, username, created_at')
-          .eq('project_id', projectId)
+          .eq('chat_messages.project_id', projectId)
           .order('created_at', { ascending: true });
           
         if (error) throw error;
@@ -94,7 +94,7 @@ const ProjectTeam: React.FC = () => {
         event: 'INSERT',
         schema: 'public',
         table: 'chat_messages',
-        filter: `project_id=eq.${projectId}`
+        filter: `chat_messages.project_id=eq.${projectId}`
       }, (payload) => {
         console.log('New message received:', payload);
         const newMsg = payload.new as any;
