@@ -514,16 +514,23 @@ export const sendProjectChatMessage = async (projectId: string, userId: string, 
 // Helper function to fetch project chat messages
 export const fetchProjectChatMessages = async (projectId: string) => {
   try {
+    console.log('Fetching chat messages for project:', projectId);
+    
     const { data, error } = await supabase
       .from('chat_messages')
-      .select('id, message, user_id, username, created_at')
+      .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true });
       
-    if (error) throw error;
+    if (error) {
+      console.error('Error in fetchProjectChatMessages:', error);
+      throw error;
+    }
+    
+    console.log('Chat messages fetched:', data);
     return data || [];
   } catch (error) {
     console.error('Error fetching project chat messages:', error);
-    return [];
+    throw error;
   }
 };
