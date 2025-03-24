@@ -20,11 +20,13 @@ import { format, parseISO } from "date-fns";
 interface EditTaskModalProps {
   taskId: string;
   onClose: () => void;
+  onTaskUpdated?: (updatedTask: any) => void; // Add callback for immediate updates
 }
 
 const EditTaskModal: React.FC<EditTaskModalProps> = ({ 
   taskId,
-  onClose
+  onClose,
+  onTaskUpdated
 }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -55,13 +57,14 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       setStatus(task.status || "todo");
       setPreviousStatus(task.status || "todo");
       
-      // Handle completion date with more robust logging
+      // Get the completion date from either field
       const dateStr = task.completionDate || task.completion_date;
+      console.log("Initial completion date from task:", dateStr);
+      
       if (dateStr) {
-        console.log("Setting completion date from task:", dateStr);
         try {
           const parsedDate = parseISO(dateStr);
-          console.log("Parsed date:", parsedDate);
+          console.log("Parsed date for EditTaskModal:", parsedDate);
           setCompletionDate(parsedDate);
         } catch (err) {
           console.error("Error parsing date:", err, "Date string was:", dateStr);
@@ -153,9 +156,36 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         completionDate: completionDate ? format(completionDate, "yyyy-MM-dd") : null
       };
       
-      console.log("Updating task with:", updatedData);
+      console.log("Updating task with data:", updatedData);
       
+      // Use direct Supabase update to ensure completion_date is properly saved
+      const { data: updatedTask, error } = await supabase
+        .from('tasks')
+        .update({
+          title: updatedData.title,
+          description: updatedData.description,
+          status: updatedData.status,
+          assign_to: updatedData.assignedTo,
+          story_points: updatedData.storyPoints,
+          priority: updatedData.priority,
+          completion_date: updatedData.completionDate
+        })
+        .eq('id', taskId)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error("Error updating task:", error);
+        throw error;
+      }
+      
+      // Also update the local state through context
       await updateTask(taskId, updatedData);
+      
+      // Call the onTaskUpdated callback with the updated task data if provided
+      if (onTaskUpdated && updatedTask) {
+        onTaskUpdated(updatedTask);
+      }
       
       toast.success("Task updated successfully");
       onClose();

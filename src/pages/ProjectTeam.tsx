@@ -4,10 +4,20 @@ import { useParams } from "react-router-dom";
 import { useProjects } from "@/context/ProjectContext";
 import { useAuth } from "@/context/AuthContext";
 import { fetchProjectCollaborators } from "@/lib/supabase";
-import { Users, MessageSquare, Mail } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Users, Mail, SendHorizontal } from "lucide-react";
 import { Collaborator } from "@/types";
-import ProjectChat from "@/components/chat/ProjectChat";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+// Interface for chat messages
+interface ChatMessage {
+  id: string;
+  message: string;
+  userId: string;
+  username: string;
+  createdAt: string;
+}
 
 const ProjectTeam: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -16,6 +26,10 @@ const ProjectTeam: React.FC = () => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [owner, setOwner] = useState<{id: string, username: string, email?: string} | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("team");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   
   const project = getProject(projectId || "");
   
@@ -34,7 +48,6 @@ const ProjectTeam: React.FC = () => {
           setOwner({
             id: project.ownerId,
             username: project.ownerName,
-            // Fixed: Remove the attempt to access project.owner which doesn't exist
             email: undefined
           });
         }
@@ -47,6 +60,101 @@ const ProjectTeam: React.FC = () => {
     
     loadCollaborators();
   }, [projectId, project]);
+
+  // Load chat messages when tab is active
+  useEffect(() => {
+    if (activeTab !== "chat" || !projectId) return;
+    
+    const loadChatMessages = async () => {
+      try {
+        // Fix: Specify the table and column explicitly to avoid ambiguity
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('id, message, user_id, username, created_at')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: true });
+          
+        if (error) throw error;
+        
+        const formattedMessages: ChatMessage[] = (data || []).map(msg => ({
+          id: msg.id,
+          message: msg.message,
+          userId: msg.user_id,
+          username: msg.username,
+          createdAt: msg.created_at
+        }));
+        
+        setChatMessages(formattedMessages);
+      } catch (error) {
+        console.error("Error loading chat messages:", error);
+        toast.error("Failed to load chat messages");
+      }
+    };
+    
+    loadChatMessages();
+    
+    // Set up real-time subscription for new messages
+    const channel = supabase
+      .channel('project-chat')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `project_id=eq.${projectId}`
+      }, (payload) => {
+        console.log('New message received:', payload);
+        const newMsg = payload.new as any;
+        
+        setChatMessages(prev => [...prev, {
+          id: newMsg.id,
+          message: newMsg.message,
+          userId: newMsg.user_id,
+          username: newMsg.username,
+          createdAt: newMsg.created_at
+        }]);
+      })
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeTab, projectId]);
+  
+  const handleSendMessage = async () => {
+    if (!user || !projectId || !newMessage.trim()) return;
+    
+    setIsSending(true);
+    try {
+      // Critical fix: Add method and specify full chat_messages table name to avoid ambiguity
+      const { error } = await supabase.rpc(
+        'insert_chat_message',
+        {
+          p_project_id: projectId,
+          p_user_id: user.id,
+          p_username: user.username || user.email?.split('@')[0] || 'Anonymous',
+          p_message: newMessage.trim()
+        }
+      );
+        
+      if (error) throw error;
+      
+      setNewMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+    } finally {
+      setIsSending(false);
+    }
+  };
+  
+  const isOwnMessage = (userId: string) => {
+    return user?.id === userId;
+  };
+  
+  const formatMessageTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
   
   if (isLoading) {
     return (
@@ -73,19 +181,19 @@ const ProjectTeam: React.FC = () => {
     <div>
       <h2 className="text-2xl font-bold mb-6">Team</h2>
       
-      <Tabs defaultValue="members" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="members" className="flex items-center gap-2">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="team" className="flex items-center gap-1">
             <Users className="h-4 w-4" />
-            <span>Members</span>
+            <span>Team Members</span>
           </TabsTrigger>
-          <TabsTrigger value="chat" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
+          <TabsTrigger value="chat" className="flex items-center gap-1">
+            <Mail className="h-4 w-4" />
             <span>Project Chat</span>
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="members" className="space-y-4">
+        <TabsContent value="team" className="space-y-4">
           <div className="scrum-card p-6">
             <h3 className="text-lg font-semibold mb-4">Project Owner</h3>
             {owner ? (
@@ -143,8 +251,67 @@ const ProjectTeam: React.FC = () => {
           </div>
         </TabsContent>
         
-        <TabsContent value="chat">
-          <ProjectChat />
+        <TabsContent value="chat" className="h-[calc(100vh-280px)] flex flex-col">
+          <div className="scrum-card p-6 flex-1 flex flex-col">
+            <h3 className="text-lg font-semibold mb-4">Project Chat</h3>
+            
+            <div className="flex-1 overflow-y-auto mb-4 space-y-3">
+              {chatMessages.length > 0 ? (
+                chatMessages.map(msg => (
+                  <div 
+                    key={msg.id} 
+                    className={`flex ${isOwnMessage(msg.userId) ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div 
+                      className={`max-w-[70%] px-3 py-2 rounded-lg ${
+                        isOwnMessage(msg.userId) 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-muted'
+                      }`}
+                    >
+                      {!isOwnMessage(msg.userId) && (
+                        <div className="font-semibold text-xs mb-1">{msg.username}</div>
+                      )}
+                      <div>{msg.message}</div>
+                      <div className="text-xs mt-1 opacity-70 text-right">
+                        {formatMessageTime(msg.createdAt)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  No messages yet. Start the conversation!
+                </div>
+              )}
+            </div>
+            
+            <div className="mt-auto">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type your message..."
+                  className="flex-1 px-3 py-2 rounded-md border border-input bg-background"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  disabled={isSending}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || isSending}
+                  className="px-3 py-2 rounded-md bg-primary text-primary-foreground disabled:opacity-50"
+                >
+                  <SendHorizontal className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
