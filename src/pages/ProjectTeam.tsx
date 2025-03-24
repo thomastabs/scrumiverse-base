@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useProjects } from "@/context/ProjectContext";
 import { useAuth } from "@/context/AuthContext";
-import { fetchProjectCollaborators } from "@/lib/supabase";
+import { fetchProjectCollaborators, sendProjectChatMessage } from "@/lib/supabase";
 import { Users, Mail, SendHorizontal } from "lucide-react";
 import { Collaborator } from "@/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -125,19 +124,14 @@ const ProjectTeam: React.FC = () => {
     
     setIsSending(true);
     try {
-      // Critical fix: Add method and specify full chat_messages table name to avoid ambiguity
-      const { error } = await supabase.rpc(
-        'insert_chat_message',
-        {
-          p_project_id: projectId,
-          p_user_id: user.id,
-          p_username: user.username || user.email?.split('@')[0] || 'Anonymous',
-          p_message: newMessage.trim()
-        }
+      // Use the helper function instead of direct RPC call
+      await sendProjectChatMessage(
+        projectId, 
+        user.id, 
+        user.username || user.email?.split('@')[0] || 'Anonymous', 
+        newMessage.trim()
       );
         
-      if (error) throw error;
-      
       setNewMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
