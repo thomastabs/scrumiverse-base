@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useProjects } from "@/context/ProjectContext";
 import { useAuth } from "@/context/AuthContext";
-import { fetchProjectCollaborators, sendProjectChatMessage, fetchProjectChatMessages } from "@/lib/supabase";
+import { fetchProjectCollaborators, sendProjectChatMessage } from "@/lib/supabase";
 import { Users, Mail, SendHorizontal } from "lucide-react";
 import { Collaborator } from "@/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -63,9 +63,15 @@ const ProjectTeam: React.FC = () => {
     
     const loadChatMessages = async () => {
       try {
-        const messages = await fetchProjectChatMessages(projectId);
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('id, message, user_id, username, created_at')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: true });
+          
+        if (error) throw error;
         
-        const formattedMessages: ChatMessage[] = messages.map(msg => ({
+        const formattedMessages: ChatMessage[] = (data || []).map(msg => ({
           id: msg.id,
           message: msg.message,
           userId: msg.user_id,
