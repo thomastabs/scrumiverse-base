@@ -38,11 +38,9 @@ const ProjectTeam: React.FC = () => {
       
       setIsLoading(true);
       try {
-        // Get collaborators
         const collaboratorsData = await fetchProjectCollaborators(projectId);
         setCollaborators(collaboratorsData);
         
-        // Set owner data if available from project
         if (project?.ownerId && project?.ownerName) {
           setOwner({
             id: project.ownerId,
@@ -60,13 +58,11 @@ const ProjectTeam: React.FC = () => {
     loadCollaborators();
   }, [projectId, project]);
 
-  // Load chat messages when tab is active
   useEffect(() => {
     if (activeTab !== "chat" || !projectId) return;
     
     const loadChatMessages = async () => {
       try {
-        // Fix: Specify the table and column explicitly to avoid ambiguity
         const { data, error } = await supabase
           .from('chat_messages')
           .select('id, message, user_id, username, created_at')
@@ -92,7 +88,6 @@ const ProjectTeam: React.FC = () => {
     
     loadChatMessages();
     
-    // Set up real-time subscription for new messages
     const channel = supabase
       .channel('project-chat')
       .on('postgres_changes', {
@@ -124,7 +119,6 @@ const ProjectTeam: React.FC = () => {
     
     setIsSending(true);
     try {
-      // Use the helper function instead of direct RPC call
       await sendProjectChatMessage(
         projectId, 
         user.id, 

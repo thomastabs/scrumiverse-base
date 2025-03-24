@@ -482,21 +482,21 @@ export const updateTaskWithCompletionDate = async (taskId: string, data: {
   }
 };
 
-// Helper function to send a project chat message using direct insert instead of RPC
+// Helper function to send a project chat message using the database function
 export const sendProjectChatMessage = async (projectId: string, userId: string, username: string, message: string) => {
   try {
     console.log('Sending chat message:', { projectId, userId, username, message });
     
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .insert({
-        project_id: projectId,
-        user_id: userId,
-        username: username,
-        message: message
-      })
-      .select('id')
-      .single();
+    // Use the database function we created
+    const { data, error } = await supabase.rpc(
+      'insert_chat_message',
+      {
+        p_project_id: projectId,
+        p_user_id: userId,
+        p_username: username,
+        p_message: message
+      }
+    );
       
     if (error) {
       console.error('Error in sendProjectChatMessage:', error);
@@ -528,4 +528,3 @@ export const fetchProjectChatMessages = async (projectId: string) => {
     return [];
   }
 };
-
